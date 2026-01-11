@@ -1,16 +1,9 @@
 
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Points, PointMaterial, Float, Text } from '@react-three/drei';
+import { Points, PointMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { DocOverlay } from './DocOverlay';
-
-const Group = 'group' as any;
-const Mesh = 'mesh' as any;
-const SphereGeometry = 'sphereGeometry' as any;
-const MeshStandardMaterial = 'meshStandardMaterial' as any;
-const AmbientLight = 'ambientLight' as any;
-const PointLight = 'pointLight' as any;
 
 interface RiskVisualizerProps {
   uncertainty: number;
@@ -38,6 +31,8 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
   }, [count]);
 
   useFrame((state) => {
+    if (!groupRef.current || !pointsRef.current || !wireRef1.current || !wireRef2.current) return;
+    
     const time = state.clock.getElapsedTime();
     
     // Smoothly follow mouse
@@ -48,16 +43,19 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
     const pulse = Math.sin(time * 2) * 0.05 * uncertainty;
     groupRef.current.scale.setScalar(1 + pulse);
 
-    const positionsArray = pointsRef.current.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < count; i++) {
-      const ix = i * 3;
-      const phase = (time + i) * 0.5;
-      const jitter = (Math.sin(phase) * 0.015) * (1 + uncertainty * 3);
-      positionsArray[ix] += jitter;
-      positionsArray[ix + 1] += jitter;
-      positionsArray[ix + 2] += jitter;
+    const geo = pointsRef.current.geometry;
+    if (geo && geo.attributes.position) {
+      const positionsArray = geo.attributes.position.array as Float32Array;
+      for (let i = 0; i < count; i++) {
+        const ix = i * 3;
+        const phase = (time + i) * 0.5;
+        const jitter = (Math.sin(phase) * 0.015) * (1 + uncertainty * 3);
+        positionsArray[ix] += jitter;
+        positionsArray[ix + 1] += jitter;
+        positionsArray[ix + 2] += jitter;
+      }
+      geo.attributes.position.needsUpdate = true;
     }
-    pointsRef.current.geometry.attributes.position.needsUpdate = true;
     
     pointsRef.current.rotation.y += 0.002 * (1 + uncertainty * 5);
     wireRef1.current.rotation.y -= 0.001 * (1 + uncertainty * 2);
@@ -67,7 +65,7 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
   const coreColor = uncertainty > 0.7 ? '#ef4444' : uncertainty > 0.4 ? '#fbbf24' : '#22d3ee';
 
   return (
-    <Group ref={groupRef}>
+    <group ref={groupRef}>
       <Points ref={pointsRef} positions={positions} stride={3} frustumCulled={false}>
         <PointMaterial 
           transparent 
@@ -80,10 +78,9 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
         />
       </Points>
       
-      {/* Primary Thick Wireframe */}
-      <Mesh ref={wireRef1}>
-        <SphereGeometry args={[1.2, 24, 24]} />
-        <MeshStandardMaterial 
+      <mesh ref={wireRef1}>
+        <sphereGeometry args={[1.2, 24, 24]} />
+        <meshStandardMaterial 
           color={coreColor} 
           emissive={coreColor} 
           emissiveIntensity={2} 
@@ -91,12 +88,11 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
           transparent 
           opacity={0.2} 
         />
-      </Mesh>
+      </mesh>
 
-      {/* Secondary Offset Wireframe for "Thick" feel */}
-      <Mesh ref={wireRef2} scale={[1.01, 1.01, 1.01]}>
-        <SphereGeometry args={[1.2, 16, 16]} />
-        <MeshStandardMaterial 
+      <mesh ref={wireRef2} scale={[1.01, 1.01, 1.01]}>
+        <sphereGeometry args={[1.2, 16, 16]} />
+        <meshStandardMaterial 
           color={coreColor} 
           emissive={coreColor} 
           emissiveIntensity={1} 
@@ -104,8 +100,8 @@ const EntropyCore: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
           transparent 
           opacity={0.15} 
         />
-      </Mesh>
-    </Group>
+      </mesh>
+    </group>
   );
 };
 
@@ -118,16 +114,14 @@ const RiskVisualizer: React.FC<RiskVisualizerProps> = ({ uncertainty }) => {
         units="Latent Entropy (0.000-1.000)"
       />
       
-      {/* Background Grid */}
       <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #22d3ee 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
       <Canvas camera={{ position: [0, 0, 5], fov: 40 }}>
-        <AmbientLight intensity={0.4} />
-        <PointLight position={[10, 10, 10]} intensity={2} color="#22d3ee" />
+        <ambientLight intensity={0.4} />
+        <pointLight position={[10, 10, 10]} intensity={2} color="#22d3ee" />
         <EntropyCore uncertainty={uncertainty} />
       </Canvas>
 
-      {/* Embedded Metrics Overlays */}
       <div className="absolute top-6 left-6 pointer-events-none space-y-1">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Live Dynamics Engine</h3>
         <p className="text-2xl font-mono text-white tracking-tighter">CORE_V4.2.1</p>

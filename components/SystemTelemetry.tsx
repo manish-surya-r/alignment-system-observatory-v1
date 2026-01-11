@@ -83,10 +83,13 @@ const SystemTelemetry: React.FC<TelemetryProps> = ({ history, maxPoints = 50 }) 
 
         <div className="relative flex-1 cursor-crosshair overflow-hidden" 
              onMouseMove={(e) => {
+               if (points.length === 0) return;
                const rect = e.currentTarget.getBoundingClientRect();
                const x = e.clientX - rect.left;
                const index = Math.min(Math.max(0, Math.floor((x / rect.width) * maxPoints)), points.length - 1);
-               setHoverIndex(index);
+               if (index >= 0 && index < points.length) {
+                 setHoverIndex(index);
+               }
              }} 
              onMouseLeave={() => setHoverIndex(null)}>
           
@@ -97,10 +100,10 @@ const SystemTelemetry: React.FC<TelemetryProps> = ({ history, maxPoints = 50 }) 
           </svg>
 
           <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]" preserveAspectRatio="none">
-            <path d={paths.throughput} fill="none" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d={paths.uncertainty} fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {paths.throughput && <path d={paths.throughput} fill="none" stroke="#22d3ee" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
+            {paths.uncertainty && <path d={paths.uncertainty} fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />}
             
-            {hoverIndex !== null && (
+            {hoverIndex !== null && points[hoverIndex] && (
               <g>
                 <line 
                   x1={padding + hoverIndex * ((width - padding * 2) / (maxPoints - 1))} 

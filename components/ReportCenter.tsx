@@ -18,7 +18,6 @@ const ReportGraph: React.FC<{ data: SystemState[], title: string, color: string 
     const xStep = (width - padding * 2) / (data.length - 1);
     const points = data.map((s, i) => {
       const x = padding + i * xStep;
-      // Map uncertainty 0-1 to height
       const y = height - padding - (s.uncertainty * (height - padding * 2));
       return `${x},${y}`;
     });
@@ -32,8 +31,7 @@ const ReportGraph: React.FC<{ data: SystemState[], title: string, color: string 
         <span className="text-[8px] font-mono text-slate-600 uppercase">Snapshot Interval: 1s</span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-24 overflow-visible">
-        <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]" />
-        {/* Grid lines */}
+        {path && <path d={path} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="drop-shadow-[0_0_8px_rgba(34,211,238,0.3)]" />}
         <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#1e293b" strokeWidth="1" />
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#1e293b" strokeWidth="1" />
       </svg>
@@ -50,13 +48,15 @@ export const ReportCenter: React.FC<ReportCenterProps> = ({ history, uncertainty
     setIsGenerating(true);
     setShowOptions(false);
     
-    // Capture the history snapshot at the moment of generation
-    // Range logic: 1 min = 60 points, 5 min = 300, etc. (assuming 1s heartbeat)
     const pointsToTake = range === '1 MINUTE' ? 60 : range === '5 MINUTES' ? 300 : 600;
     const snapshot = history.slice(-pointsToTake);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
+      if (!apiKey) {
+        throw new Error("API Key is missing in environment");
+      }
+      const ai = new GoogleGenAI({ apiKey });
       const avgUncertainty = snapshot.reduce((acc, curr) => acc + curr.uncertainty, 0) / (snapshot.length || 1);
       
       const prompt = `Act as an AI Safety Officer. Generate a technical observatory report for the past ${range}. 
@@ -75,6 +75,7 @@ export const ReportCenter: React.FC<ReportCenterProps> = ({ history, uncertainty
       });
     } catch (error) {
       console.error("Report Generation Error:", error);
+      alert("Error generating report. Ensure API key is configured.");
     } finally {
       setIsGenerating(false);
     }
@@ -134,14 +135,12 @@ export const ReportCenter: React.FC<ReportCenterProps> = ({ history, uncertainty
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Text Report Section */}
             <div className="prose prose-invert max-w-none">
               <div className="text-[11px] font-mono text-slate-400 leading-relaxed whitespace-pre-wrap font-medium">
                 {report.text}
               </div>
             </div>
 
-            {/* Visual Analytics Section */}
             <div className="space-y-4">
               <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-2 mb-4">Visual Analytics Dashboard</h5>
               
@@ -151,13 +150,13 @@ export const ReportCenter: React.FC<ReportCenterProps> = ({ history, uncertainty
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mb-1">Peak Drift</p>
                   <p className="text-lg font-mono font-black text-amber-500">
-                    {Math.max(...report.snapshot.map(s => s.uncertainty)).toFixed(4)}
+                    {report.snapshot.length > 0 ? Math.max(...report.snapshot.map(s => s.uncertainty)).toFixed(4) : "0.0000"}
                   </p>
                 </div>
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
                   <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mb-1">Safety Variance</p>
                   <p className="text-lg font-mono font-black text-cyan-500">
-                    {(Math.max(...report.snapshot.map(s => s.uncertainty)) - Math.min(...report.snapshot.map(s => s.uncertainty))).toFixed(4)}
+                    {report.snapshot.length > 0 ? (Math.max(...report.snapshot.map(s => s.uncertainty)) - Math.min(...report.snapshot.map(s => s.uncertainty))).toFixed(4) : "0.0000"}
                   </p>
                 </div>
               </div>
