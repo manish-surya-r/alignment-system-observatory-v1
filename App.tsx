@@ -19,6 +19,61 @@ interface LogEntry {
   severity: 'INFO' | 'CAUTION' | 'SUCCESS';
 }
 
+/**
+ * ErrorBoundary Component
+ * Fixed typing to resolve "Property 'state'/'props' does not exist" and children requirement errors.
+ */
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("ASO UI Crash Intercepted:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#020617] flex items-center justify-center p-8 text-center font-sans">
+          <div className="max-w-md space-y-6">
+            <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+              <i className="fas fa-exclamation-triangle text-red-500 text-3xl"></i>
+            </div>
+            <h1 className="text-2xl font-black text-white uppercase italic tracking-tighter">Critical System Failure</h1>
+            <p className="text-slate-500 text-sm font-mono leading-relaxed">
+              An unrecoverable error occurred in the ASO UI layer. Intercepting to prevent system-wide cascade.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-8 py-3 bg-red-600 text-white rounded-xl font-black uppercase tracking-[0.2em] text-[10px] hover:bg-red-500 transition-colors shadow-lg shadow-red-900/20"
+            >
+              Reload Terminal
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
+ * Main Application Component
+ */
 const App: React.FC = () => {
   const mode = useDeviceMode();
   const [system, setSystem] = useState<SystemState>({
@@ -78,13 +133,16 @@ const App: React.FC = () => {
       const types: LogEntry['type'][] = ['SYNC', 'FILTER', 'DRIFT', 'SYSTEM', 'LOGIC'];
       const msgs = ['Heartbeat verified', 'N-Space projection updated', 'Buffers scrubbed', 'Handshake OK', 'Protocol check pass'];
       const type = types[Math.floor(Math.random() * types.length)];
-      setLogs(prev => [...prev.slice(-19), {
-        id: Math.random().toString(),
-        time: new Date().toLocaleTimeString('en-GB', { hour12: false }),
-        type,
-        message: msgs[Math.floor(Math.random() * msgs.length)],
-        severity: Math.random() > 0.8 ? 'CAUTION' : 'INFO'
-      }]);
+      setLogs(prev => {
+        const newLog: LogEntry = {
+          id: Math.random().toString(),
+          time: new Date().toLocaleTimeString('en-GB', { hour12: false }),
+          type,
+          message: msgs[Math.floor(Math.random() * msgs.length)],
+          severity: Math.random() > 0.8 ? 'CAUTION' : 'INFO'
+        };
+        return [...prev.slice(-19), newLog];
+      });
     }, 3000);
     return () => clearInterval(logInterval);
   }, []);
@@ -105,183 +163,113 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-cyan-500/30 font-sans pb-24 overflow-x-hidden">
-      
-      {/* 3D FLOATING MENU DESKTOP */}
-      {isDesktop && (
-        <aside className="fixed right-8 top-1/2 -translate-y-1/2 z-[100] hidden xl:flex flex-col gap-6">
-          {menuItems.map((item, i) => (
-            <button key={i} className="group relative w-16 h-16 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center transition-all hover:scale-110 hover:-translate-x-2 active:scale-95 shadow-[8px_8px_0_rgba(15,23,42,1)] hover:shadow-cyan-500/20 hover:border-cyan-500 group">
-              <i className={`fas ${item.icon} text-xl text-slate-500 group-hover:text-cyan-400`}></i>
-              <span className="absolute right-20 bg-slate-900 border border-slate-800 text-cyan-400 text-[9px] font-black px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap tracking-[0.2em] pointer-events-none uppercase shadow-2xl">
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </aside>
-      )}
-
-      {/* MOBILE OVERLAY MENU */}
-      {!isDesktop && (
-        <div className={`fixed inset-0 z-[200] bg-slate-950/98 backdrop-blur-2xl transition-all duration-500 ${menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <div className="p-8 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-12">
-              <h1 className="text-2xl font-black italic text-cyan-500 tracking-tighter">ASO MENU</h1>
-              <button onClick={() => setMenuOpen(false)} className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-                <i className="fas fa-times"></i>
-              </button>
-            </div>
-            <div className="flex-1 space-y-4">
-              {menuItems.map((item, i) => (
-                <button key={i} onClick={() => setMenuOpen(false)} className="w-full p-6 bg-slate-900/50 border border-slate-800 rounded-2xl flex items-center gap-6 group hover:border-cyan-500 transition-all">
-                  <div className="w-12 h-12 rounded-xl bg-slate-950 flex items-center justify-center text-slate-500 group-hover:text-cyan-400">
-                    <i className={`fas ${item.icon} text-xl`}></i>
-                  </div>
-                  <span className="text-sm font-black uppercase tracking-widest text-slate-400 group-hover:text-white">
-                    {item.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="mt-auto pt-8 border-t border-slate-800 flex justify-between items-center text-[10px] font-mono text-slate-600">
-               <span>VERSION: ASO-CORE-4.2.1</span>
-               <span className="text-emerald-500">SYSTEM_UP</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* GLOBAL HEADER */}
-      <header className="px-4 md:px-12 py-6 border-b border-slate-800/60 flex flex-col md:flex-row gap-6 justify-between items-center bg-slate-900/60 backdrop-blur-xl sticky top-0 z-50">
-        <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex items-center gap-6">
-            {!isDesktop && (
-              <button onClick={() => setMenuOpen(true)} className="p-2 text-slate-400 text-2xl lg:hidden">
-                <i className="fas fa-bars"></i>
-              </button>
-            )}
-            <div className="relative group cursor-pointer">
-              <div className="absolute inset-0 bg-cyan-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity"></div>
-              <div className="relative p-2.5 bg-cyan-600 rounded-xl shadow-2xl transition-transform active:scale-95">
-                <i className="fas fa-satellite-dish text-white text-xl"></i>
-              </div>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="text-2xl font-black tracking-tighter uppercase leading-none italic">ASO</h1>
-              <p className="text-[10px] text-slate-500 font-black tracking-[0.4em] uppercase">Alignment Observatory</p>
-            </div>
-          </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-cyan-500/30 font-sans pb-24 overflow-x-hidden">
+        
+        {/* HEADER */}
+        <header className="fixed top-0 left-0 right-0 z-[110] bg-slate-950/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <PulseIndicator active={Date.now() - system.lastHeartbeat < 3000} />
-            <div className="h-6 w-px bg-slate-800 hidden sm:block"></div>
-            <div className="hidden lg:flex items-center gap-3 px-4 py-1.5 bg-slate-800/80 rounded-lg border border-slate-700 text-[10px] font-black tracking-widest text-slate-300 uppercase">
-              <i className={`fas ${isOperator ? 'fa-mobile-alt' : 'fa-desktop'} text-cyan-400`}></i>
-              {isOperator ? 'MOBILE OPERATOR' : 'WEB DASHBOARD'}
+            <div className="w-10 h-10 bg-cyan-600 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-900/20">
+              <i className="fas fa-eye text-white text-xl"></i>
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tighter text-white uppercase italic leading-none">ASO OBSERVATORY</h1>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">ALIGNMENT SYSTEMS V4.2.1</p>
             </div>
           </div>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-4 w-full md:w-auto justify-center md:justify-end">
-          <div className="flex gap-2">
-            <button className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors flex items-center gap-2">
-              <i className="fas fa-desktop text-cyan-500"></i> DESKTOP
-            </button>
-            <button className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-[9px] font-black uppercase tracking-widest text-slate-400 transition-colors flex items-center gap-2">
-              <i className="fab fa-android text-emerald-500"></i> MOBILE
-            </button>
+          
+          <div className="flex items-center gap-6">
+            <PulseIndicator active={Date.now() - system.lastHeartbeat < 2000} />
+            <div className="hidden md:block h-8 w-px bg-slate-800"></div>
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Device Mode</span>
+              <span className="text-xs font-mono font-bold text-cyan-400">{mode}</span>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <main className={`p-4 md:p-8 lg:p-12 xl:pr-40 max-w-[1800px] mx-auto grid gap-8 lg:gap-12 ${isOperator ? 'grid-cols-1' : 'lg:grid-cols-3'}`}>
-        
-        {/* LEFT COLUMN: CORE SIMULATION & TELEMETRY */}
-        <div className={isOperator ? 'space-y-8' : 'lg:col-span-2 space-y-8 lg:space-y-16'}>
-          <section className="space-y-8 lg:space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-            <RiskVisualizer uncertainty={system.uncertainty} />
-            <SystemTelemetry history={history} />
-            <SystemArchitecture uncertainty={system.uncertainty} />
-            <LatentLandscape uncertainty={system.uncertainty} />
-            
-            <div className="pt-10 border-t border-slate-800/60">
-              <h2 className="text-xs font-black uppercase tracking-[0.4em] text-cyan-500 mb-8 flex items-center gap-4">
-                <span className="w-12 h-px bg-cyan-500/30"></span>
-                Alignment Protocol Suite
-                <span className="flex-1 h-px bg-cyan-500/30"></span>
-              </h2>
-              <ProtocolSuite uncertainty={system.uncertainty} />
+        {/* 3D FLOATING MENU DESKTOP */}
+        {isDesktop && (
+          <aside className="fixed right-8 top-1/2 -translate-y-1/2 z-[100] hidden xl:flex flex-col gap-6">
+            {menuItems.map((item, i) => (
+              <button key={i} className="group relative w-16 h-16 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-center transition-all hover:scale-110 hover:-translate-x-2 active:scale-95 shadow-[8px_8px_0_rgba(15,23,42,1)] hover:shadow-cyan-500/20 hover:border-cyan-500 group">
+                <i className={`fas ${item.icon} text-xl text-slate-500 group-hover:text-cyan-400`}></i>
+                <span className="absolute right-20 bg-slate-900 border border-slate-800 text-cyan-400 text-[10px] font-black px-4 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none uppercase tracking-widest">
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </aside>
+        )}
+
+        <main className="container mx-auto px-4 pt-32 space-y-8 max-w-7xl">
+          
+          {/* TOP ALERTS SECTION */}
+          <div className="space-y-4">
+            {alerts.map(alert => (
+              <AlertBanner key={alert.id} alert={alert} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* MAIN VISUALIZER COLUMN */}
+            <div className="lg:col-span-8 space-y-8">
+              <RiskVisualizer uncertainty={system.uncertainty} />
+              <SystemTelemetry history={history} />
+              <SystemArchitecture uncertainty={system.uncertainty} />
+              <LatentLandscape uncertainty={system.uncertainty} />
             </div>
 
-            {history.length > 5 && <ReportCenter history={history} uncertainty={system.uncertainty} />}
-          </section>
-        </div>
-
-        {/* RIGHT COLUMN: STATUS, HMI & ALERTS */}
-        <div className="space-y-8 h-full">
-          <div className={`space-y-8 ${isOperator ? '' : 'lg:sticky lg:top-32'}`}>
-            <ResponsibilityCue mode={system.uncertainty > 0.65 ? 'MANUAL' : 'AUTO'} />
-            
-            <section className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'CPU LOAD', val: '22%', unit: 'NODE_X' },
-                { label: 'THINKING_BUDGET', val: '32k', unit: 'TOK' },
-                { label: 'ALIGNMENT_SCORE', val: system.alignmentScore.toFixed(3), unit: 'SIG' },
-                { label: 'LATENT_ENTROPY', val: (system.uncertainty * 0.003).toFixed(4), unit: 'H' },
-              ].map((item, i) => (
-                <div key={i} className="bg-slate-900/40 border border-slate-800 p-5 rounded-2xl hover:border-cyan-500/50 transition-all hover:scale-[1.02] hover:shadow-2xl">
-                  <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">{item.label}</p>
-                  <p className="text-xl font-mono text-slate-100 leading-none">{item.val}</p>
-                  <p className="text-[8px] font-mono text-slate-700 mt-2 uppercase">{item.unit}</p>
+            {/* SIDEBAR CONTROLS COLUMN */}
+            <div className="lg:col-span-4 space-y-8">
+              <ResponsibilityCue mode={system.uncertainty > 0.65 ? 'MANUAL' : 'AUTO'} />
+              
+              <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 space-y-6">
+                <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">Live System Log</h3>
+                <div 
+                  ref={logContainerRef}
+                  className="h-[400px] overflow-y-auto pr-2 space-y-3 font-mono text-[10px] scroll-smooth custom-scrollbar"
+                >
+                  {logs.map(log => (
+                    <div key={log.id} className="flex gap-4 border-b border-slate-800/50 pb-2 group hover:bg-slate-800/20 p-1 rounded transition-colors">
+                      <span className="text-slate-600 shrink-0">{log.time}</span>
+                      <span className={`font-black shrink-0 ${
+                        log.severity === 'CAUTION' ? 'text-amber-500' : 'text-cyan-600'
+                      }`}>[{log.type}]</span>
+                      <span className="text-slate-300 group-hover:text-white transition-colors">{log.message}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </section>
-
-            <HMIOverride />
-
-            <section className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-600 px-1">Critical Event Stream</h3>
-              <div className="space-y-3">
-                {alerts.map(alert => <AlertBanner key={alert.id} alert={alert} />)}
               </div>
-            </section>
 
-            <section className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl space-y-4 backdrop-blur-md">
-              <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-500">EVENT STREAM_LOG</h3>
-              <div ref={logContainerRef} className="space-y-3 font-mono text-[10px] h-[300px] overflow-y-auto custom-scrollbar pr-2 scroll-smooth">
-                 {logs.map((log) => (
-                   <div key={log.id} className="flex gap-2 text-slate-600 border-b border-slate-800/30 pb-2 last:border-0 hover:bg-slate-800/20 rounded-md transition-colors px-1 group">
-                      <span className="text-cyan-600 font-bold group-hover:text-cyan-400">[{log.time}]</span>
-                      <span className={`font-bold w-12 ${log.severity === 'CAUTION' ? 'text-amber-500' : 'text-slate-500'}`}>{log.type}:</span>
-                      <span className={`${log.severity === 'CAUTION' ? 'text-amber-200' : 'text-slate-400'}`}>{log.message}</span>
-                   </div>
-                 ))}
-                 <div className="flex gap-2 transition-colors duration-500 animate-pulse text-cyan-500 mt-2">
-                    <span className="font-bold">[{new Date().toLocaleTimeString('en-GB', { hour12: false })}]</span>
-                    <span className="font-black uppercase tracking-widest">DRIFT_CHECK: {system.uncertainty > 0.7 ? 'CAUTION' : 'NOMINAL'}</span>
-                 </div>
-              </div>
-            </section>
+              <ProtocolSuite uncertainty={system.uncertainty} />
+              <HMIOverride />
+            </div>
           </div>
-        </div>
-      </main>
 
-      <SystemManual />
+          <ReportCenter history={history} uncertainty={system.uncertainty} />
+          <SystemManual />
+        </main>
 
-      {isDesktop && (
-        <footer className="fixed bottom-0 left-0 right-0 h-12 bg-slate-900/80 border-t border-slate-800 flex items-center px-12 justify-between text-[10px] font-mono text-slate-500 z-40 backdrop-blur-xl">
-          <div className="flex gap-8">
-            <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]"></div> SYSTEM_STATE: OPTIMAL</span>
-            <span>UPTIME: 331:14:02</span>
-            <span>VERSION: ASO-CORE-4.2.1-GOLD</span>
-          </div>
-          <div className="flex items-center gap-8">
-            <span className="text-slate-400 uppercase font-black tracking-[0.4em] italic">Alignment Systems Observatory</span>
-            <span className="text-slate-800">|</span>
-            <span className="text-slate-600 uppercase tracking-widest font-black">SECURE ENVIRONMENT</span>
-          </div>
-        </footer>
-      )}
-    </div>
+        {/* MOBILE NAVIGATION */}
+        {isOperator && (
+          <nav className="fixed bottom-0 left-0 right-0 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800 p-4 flex justify-around items-center z-[110]">
+            {menuItems.slice(0, 4).map((item, i) => (
+              <button key={i} className="flex flex-col items-center gap-1">
+                <i className={`fas ${item.icon} text-lg text-slate-500`}></i>
+                <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">{item.label}</span>
+              </button>
+            ))}
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-cyan-900/40 -translate-y-4 border-4 border-slate-950"
+            >
+              <i className={`fas ${menuOpen ? 'fa-times' : 'fa-plus'}`}></i>
+            </button>
+          </nav>
+        )}
+      </div>
+    </ErrorBoundary>
   );
 };
 
