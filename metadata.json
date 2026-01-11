@@ -1,0 +1,5 @@
+{
+  "name": "Alignment Systems Observatory (ASO)",
+  "description": "A high-fidelity monitoring and operator interface for safety-critical alignment systems, featuring automated device mode detection and real-time risk visualizations.",
+  "requestFramePermissions": []
+}
